@@ -1,0 +1,25 @@
+{
+  "name": "travel-journal-app-backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node ./app.js",
+    "dev": "node --watch ./app.js"
+  },
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/UmbertoAmenta/travel-journal-app-BackEnd.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/UmbertoAmenta/travel-journal-app-BackEnd/issues"
+  },
+  "homepage": "https://github.com/UmbertoAmenta/travel-journal-app-BackEnd#readme",
+  "dependencies": {
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0"
+  }
+}
