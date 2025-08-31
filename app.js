@@ -12,10 +12,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // abilitazione cors al solo dominio di sviluppo, al momento
-const allowedOrigins = [process.env.CLIENT_URL];
+const allowedOrigin = process.env.CLIENT_URL;
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: allowedOrigin,
   })
 );
 
