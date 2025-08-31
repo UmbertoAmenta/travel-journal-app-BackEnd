@@ -3,7 +3,7 @@ import express from "express";
 import { validationParamsId } from "../middlewares/params/validationParamsId.js";
 import { requiredInputs } from "../middlewares/validation/requiredInputs.js";
 import { allowedFields } from "../middlewares/validation/allowedFields.js";
-import { sanitizeInputs } from "../middlewares/sanitization/sanitazeInputs.js";
+import { sanitizeInputs } from "../middlewares/sanitization/sanitizeInputs.js";
 import { validateTypes } from "../middlewares/validation/validateTypes.js";
 
 import {

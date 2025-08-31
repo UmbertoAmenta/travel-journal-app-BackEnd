@@ -1,96 +1,156 @@
-import { getPosts, savePosts, generateId } from "../models/postsModel.js";
+import {
+  getPosts,
+  getPostById,
+  createPost,
+  updatePost,
+  deletePost,
+} from "../models/postsModel.js";
 
-const index = (req, res) => {
-  const posts = getPosts();
-  res.json({ data: posts });
-};
-
-const show = (req, res) => {
-  const posts = getPosts();
-  const post = posts.find((p) => p.id === req.id);
-
-  if (!post) return res.status(404).json({ error: "Post non trovato" });
-
-  res.json({ data: post });
-};
-
-const store = (req, res) => {
-  const {
-    title,
-    locality,
-    album,
-    description,
-    company,
-    initialDate,
-    finalDate,
-  } = req.body;
-
-  //  verifica che tutti i campi siano presenti nel corpo della richiesta
-  if (
-    !title ||
-    !locality ||
-    !album ||
-    !description ||
-    !company ||
-    !initialDate ||
-    !finalDate
-  ) {
-    return res.status(400).json({
-      error: true,
-      message: "All fields are required",
-    });
+const index = async (req, res, next) => {
+  try {
+    const posts = await getPosts();
+    res.json({ data: posts });
+  } catch (error) {
+    next(error);
   }
-
-  //  recupero posts
-  const posts = getPosts();
-
-  //  aggiunta nuovo post al database
-  const newPost = {
-    id: generateId(),
-    title,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    locality,
-    album,
-    description,
-    company,
-    initialDate,
-    finalDate,
-  };
-  posts.push(newPost);
-
-  savePosts(posts);
-  res.status(201).json({
-    data: newPost,
-  });
 };
 
-const modify = (req, res) => {
-  const posts = getPosts();
-  const post = posts.find((p) => p.id === req.id);
+const show = async (req, res, next) => {
+  try {
+    const posts = await getPosts();
+    const post = posts.find((p) => p.id === parseInt(req.params.id));
 
-  if (!post) return res.status(404).json({ error: "Post non trovato" });
+    if (!post) {
+      return res.status(404).json({ error: "Viaggio non trovato" });
+    }
 
-  // Object.assign(target, ...sources)
-  //  superficiale come lo spread operator ma modifica direttamente le proprietà modificate (non crea una nuova copia del post)
-  Object.assign(post, req.body, { updatedAt: new Date().toISOString() });
-
-  savePosts(posts);
-  res.json({ data: post });
+    res.json({ data: [post] });
+  } catch (error) {
+    next(error);
+  }
 };
 
-const destroy = (req, res) => {
-  const posts = getPosts();
+const store = async (req, res, next) => {
+  try {
+    const {
+      title,
+      locality,
+      album,
+      description,
+      company,
+      initialDate,
+      finalDate,
+    } = req.body;
 
-  // selezione del post ed eliminazione diretta
-  const indexToDelete = posts.findIndex((p) => p.id === req.id);
-  if (indexToDelete === -1)
-    return res.status(404).json({ error: "Post non trovato" });
-  // splice restituisce un array, con [0] seleziono direttamente l'oggetto
-  const deletedPost = posts.splice(indexToDelete, 1)[0];
+    // Controllo campi obbligatori
+    if (
+      !title ||
+      !locality ||
+      !description ||
+      !initialDate ||
+      !finalDate ||
+      !Array.isArray(album) ||
+      album.length === 0 ||
+      !Array.isArray(company)
+    ) {
+      return res.status(400).json({
+        error: true,
+        message: "Campi obbligatori mancanti o non validi",
+      });
+    }
 
-  savePosts(posts);
-  res.json({ data: deletedPost });
+    // Creazione post nel database
+    const insertId = await createPost({
+      title,
+      locality,
+      album,
+      description,
+      company,
+      initialDate,
+      finalDate,
+    });
+
+    // Ricreo l'oggetto completo da restituire al client
+    const newPost = {
+      id: insertId,
+      title,
+      locality,
+      album,
+      description,
+      company,
+      initialDate,
+      finalDate,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    res.status(201).json({ data: newPost });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const modify = async (req, res, next) => {
+  const id = parseInt(req.params.id);
+
+  try {
+    // Recupera il post esistente
+    const existingPost = await getPostById(id);
+    if (!existingPost) {
+      return res.status(404).json({ error: "Viaggio non trovato" });
+    }
+
+    // Se nell'update non viene passato album, mantieni quello esistente
+    const album = Array.isArray(req.body.album)
+      ? req.body.album
+      : existingPost.album;
+
+    // Se dopo l'update l'album risultasse vuoto, errore
+    if (!album || album.length === 0) {
+      return res.status(400).json({
+        error: "Al viaggio deve essere associato almeno un elemento nell'album",
+      });
+    }
+
+    // Gli altri campi si aggiornano come passati (o rimangono invariati)
+    const updateData = {
+      title: req.body.title ?? existingPost.title,
+      description: req.body.description ?? existingPost.description,
+      locality: req.body.locality ?? existingPost.locality,
+      initialDate: req.body.initialDate ?? existingPost.initialDate,
+      finalDate: req.body.finalDate ?? existingPost.finalDate,
+      album,
+      company: Array.isArray(req.body.company)
+        ? req.body.company
+        : existingPost.company,
+    };
+
+    await updatePost(id, updateData);
+
+    const updatedPost = await getPostById(id);
+    res.json({ data: [updatedPost] });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const destroy = async (req, res, next) => {
+  const id = parseInt(req.params.id);
+
+  try {
+    // Controlla che il post esista
+    const existingPost = await getPostById(id);
+    if (!existingPost) {
+      return res.status(404).json({ error: "Viaggio non trovato" });
+    }
+
+    // Elimina il post
+    await deletePost(id);
+
+    res.json({ data: [existingPost] });
+  } catch (error) {
+    next(error);
+  }
 };
 
 export { index, show, store, modify, destroy };
